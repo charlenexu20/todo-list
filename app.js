@@ -11,57 +11,66 @@ app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static("public"));
 
-// Connection
-mongoose.connect("mongodb://127.0.0.1:27017/todolistDB");
-
 // Schema
-const itemSchema = new mongoose.Schema({ name: String });
+const itemSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true
+  }
+});
 
 // Model
 const Item = mongoose.model("Item", itemSchema);
 
-// Document
-const item1 = new Item({ name: "Welcome to your todolist!" });
-const item2 = new Item({ name: "Hit the + button to add a new item." });
-const item3 = new Item({ name: "<-- Hit this to delete an item." });
+// Initialize Database
+async function main() {
+  try {
+    await mongoose.connect("mongodb://127.0.0.1:27017/todolistDB");
 
-const defaultItems = [item1, item2, item3];
+    const existingItems = await Item.find({});
 
-// Render database items
+    if (existingItems.length === 0) {
+      const item1 = new Item({ name: "Welcome to your todolist!" });
+      const item2 = new Item({ name: "Hit the + button to add a new item." });
+      const item3 = new Item({ name: "<-- Hit this to delete an item." });
+
+      const defaultItems = [item1, item2, item3];
+
+      await Item.insertMany(defaultItems);
+      console.log("Database initialization successful.");
+    } else {
+      console.log("Database already initialized with items.");
+    }
+  } catch (error) {
+    console.error("Error initializing database:", error);
+  }
+}
+
+main();
+
+// Default route for the home page | Render database items
 app.get("/", async (req, res) => {
   try {
     const items = await Item.find({});
-    if (items.length === 0) {
-      try {
-        const insertedItems = await Item.insertMany(defaultItems);
-        console.log(insertedItems)
-      } catch (err) {
-        console.error("Error inserting items:", err);
-      } finally {
-        console.log("Successfully inserted items.");
-      }
-      res.redirect("/");
-    } else {
-      // Render the "list" view only if there are items
-      res.render("list", {listTitle: "Today", newListItems: items});
-    }
+    // Render the "list" view only if there are items
+    res.render("list", {listTitle: "Today", newListItems: items});
   } catch (err) {
     console.error(err);
     // Handle the error or redirect to an error page
-    res.render("error", { errorMessage: "An error occurred." });
+    // res.render("list", { errorMessage: "An error occurred." });
   }
 });
 
-app.post("/", function(req, res){
-
-  const item = req.body.newItem;
-
-  if (req.body.list === "Work") {
-    workItems.push(item);
-    res.redirect("/work");
-  } else {
-    items.push(item);
+app.post("/", async (req, res) => {
+  try {
+    const itemName = req.body.newItem;
+    const newItem = await Item.create({ name: itemName });
+    console.log("Successfully created a new item:", newItem);
     res.redirect("/");
+  } catch (err) {
+    console.error("Error creating a new item:", err);
+    // Handle the error by rendering an error page or sending an error response
+    // res.status(500).render("list", { errorMessage: "An error occurred." });
   }
 });
 
