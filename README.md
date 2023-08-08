@@ -1,7 +1,7 @@
 # todo-list
 This project is a simple TodoList application developed to practice and demonstrate the use of MongoDB.
 
-<img width="1278" alt="Screen Shot 2023-08-08 at 1 01 45 PM" src="https://github.com/charlenexu20/todo-list/assets/113628879/9cdf868f-8e65-4872-b5e4-fbd3b7fa1a62">
+![todo_app_preview](https://github.com/charlenexu20/todo-list/assets/113628879/60b617bd-f2b5-469c-9b74-f33dd7ed73c1)
 
 ## Usage
 * __Home Page (http://localhost:3000):__ This serves as the default page displaying the "Today" list. To add new items to the list, enter the item in the input field and click the "+" button.
