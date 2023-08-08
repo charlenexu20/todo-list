@@ -3,6 +3,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
+const _ = require("lodash");
 
 const app = express();
 
@@ -77,7 +78,7 @@ app.get("/", async (req, res) => {
 
 app.get("/:customListName", async (req, res) => {
   try {
-    const customListName = req.params.customListName;
+    const customListName = _.capitalize(req.params.customListName);
     const foundList = await List.findOne({ name: customListName });
     if (foundList) {
       res.render("list", {
@@ -100,14 +101,36 @@ app.post("/", async (req, res) => {
   try {
     const itemName = req.body.newItem;
     const listName = req.body.list;
+    const newItem = new Item({ name: itemName });
 
     if (listName === "Today") {
-      await Item.create({ name: itemName });
+      await newItem.save();
       res.redirect("/");
     } else {
       const foundList = await List.findOne({ name: listName });
-      const newItem = await Item.create({ name: itemName });
       foundList.items.push(newItem);
+      await foundList.save(); // Make sure to save the updated list
+      res.redirect(`/${listName}`);
+    }
+  } catch (err) {
+    console.error("Error creating a new item:", err);
+    // Handle the error by rendering an error page or sending an error response
+    // res.status(500).render("list", { errorMessage: "An error occurred." });
+  }
+});
+
+app.post("/", async (req, res) => {
+  try {
+    const itemName = req.body.newItem;
+    const listName = req.body.list;
+
+    const item = new Item({ name: itemName });
+    if (listName === "Today") {
+      await item.save();
+      res.redirect("/");
+    } else {
+      const foundList = await List.findOne({ name: listName });
+      foundList.items.push(item);
       await foundList.save(); // Make sure to save the updated list
       res.redirect(`/${listName}`);
     }
@@ -121,16 +144,22 @@ app.post("/", async (req, res) => {
 app.post("/delete", async (req, res) => {
   try {
     const checkedItemId = req.body.checkbox;
-    const deletedItem = await Item.findByIdAndRemove(checkedItemId);
-    console.log("Successfully deleted an item:", deletedItem);
-    res.redirect("/");
+    const listName = req.body.listName;
+
+    if (listName === "Today") {
+      const deletedItem = await Item.findByIdAndRemove(checkedItemId);
+      console.log("Successfully deleted an item:", deletedItem);
+      res.redirect("/");
+    } else {
+      await List.findOneAndUpdate(
+        { name: listName },
+        { $pull: { items: { _id: checkedItemId } }}
+      );
+      res.redirect(`/${listName}`);
+    }
   } catch (err) {
     console.error(err);
   }
-});
-
-app.get("/about", function(req, res){
-  res.render("about");
 });
 
 app.listen(3000, function() {
