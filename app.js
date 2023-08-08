@@ -11,16 +11,15 @@ app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static("public"));
 
-// Schema
-const itemSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true
-  }
-});
+// Create a function that returns the default items
+function getDefaultItems() {
+  const item1 = new Item({ name: "Welcome to your todolist!" });
+  const item2 = new Item({ name: "Hit the + button to add a new item." });
+  const item3 = new Item({ name: "<-- Hit this to delete an item." });
 
-// Model
-const Item = mongoose.model("Item", itemSchema);
+  const defaultItems = [item1, item2, item3];
+  return defaultItems;
+}
 
 // Initialize Database
 async function main() {
@@ -30,11 +29,7 @@ async function main() {
     const existingItems = await Item.find({});
 
     if (existingItems.length === 0) {
-      const item1 = new Item({ name: "Welcome to your todolist!" });
-      const item2 = new Item({ name: "Hit the + button to add a new item." });
-      const item3 = new Item({ name: "<-- Hit this to delete an item." });
-
-      const defaultItems = [item1, item2, item3];
+      const defaultItems = getDefaultItems();
 
       await Item.insertMany(defaultItems);
       console.log("Database initialization successful.");
@@ -48,6 +43,25 @@ async function main() {
 
 main();
 
+// Schema
+const itemSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true
+  }
+});
+
+// Model
+const Item = mongoose.model("Item", itemSchema);
+
+// Custom list schema
+const listSchema = ({
+  name: String,
+  items: [itemSchema]
+});
+
+const List = mongoose.model("List", listSchema);
+
 // Default route for the home page | Render database items
 app.get("/", async (req, res) => {
   try {
@@ -58,6 +72,27 @@ app.get("/", async (req, res) => {
     console.error(err);
     // Handle the error or redirect to an error page
     // res.render("list", { errorMessage: "An error occurred." });
+  }
+});
+
+app.get("/:customListName", async (req, res) => {
+  try {
+    const customListName = req.params.customListName;
+    const foundList = await List.findOne({ name: customListName });
+    if (foundList) {
+      res.render("list", {
+        listTitle: foundList.name,
+        newListItems: foundList.items
+      })
+    } else {
+      const list = await List.create({
+        name: customListName,
+        items: getDefaultItems()
+      });
+      res.redirect(`/${customListName}`);
+    }
+  } catch (err) {
+    console.error(err);
   }
 });
 
@@ -83,10 +118,6 @@ app.post("/delete", async (req, res) => {
   } catch (err) {
     console.error(err);
   }
-})
-
-app.get("/work", function(req,res){
-  res.render("list", {listTitle: "Work List", newListItems: workItems});
 });
 
 app.get("/about", function(req, res){
