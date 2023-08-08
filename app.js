@@ -55,7 +55,7 @@ const itemSchema = new mongoose.Schema({
 const Item = mongoose.model("Item", itemSchema);
 
 // Custom list schema
-const listSchema = ({
+const listSchema = new mongoose.Schema({
   name: String,
   items: [itemSchema]
 });
@@ -85,7 +85,7 @@ app.get("/:customListName", async (req, res) => {
         newListItems: foundList.items
       })
     } else {
-      const list = await List.create({
+      await List.create({
         name: customListName,
         items: getDefaultItems()
       });
@@ -99,9 +99,18 @@ app.get("/:customListName", async (req, res) => {
 app.post("/", async (req, res) => {
   try {
     const itemName = req.body.newItem;
-    const newItem = await Item.create({ name: itemName });
-    console.log("Successfully created a new item:", newItem);
-    res.redirect("/");
+    const listName = req.body.list;
+
+    if (listName === "Today") {
+      await Item.create({ name: itemName });
+      res.redirect("/");
+    } else {
+      const foundList = await List.findOne({ name: listName });
+      const newItem = await Item.create({ name: itemName });
+      foundList.items.push(newItem);
+      await foundList.save(); // Make sure to save the updated list
+      res.redirect(`/${listName}`);
+    }
   } catch (err) {
     console.error("Error creating a new item:", err);
     // Handle the error by rendering an error page or sending an error response
